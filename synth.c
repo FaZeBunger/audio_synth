@@ -126,6 +126,8 @@ static ma_uint64 noise_track_read(Track *pTrack, void *pFramesOut,
                                   ma_uint64 frameCount) {
   NoiseTrack *pSelf = (NoiseTrack *)pTrack;
   ma_uint64 framesRead = 0;
+  ma_noise_read_pcm_frames(&pSelf->noise, pFramesOut, frameCount, &framesRead);
+  return framesRead;
 }
 
 static void noise_track_uninit(Track *pTrack) {
@@ -147,7 +149,7 @@ static const TrackVTable g_WaveTrackVTable = {
 };
 
 Track* wave_track_create(WaveTypes type, double amp, double freq) {
-  WaveTrack *pTrack = malloc(sizeof(Track));
+  WaveTrack *pTrack = malloc(sizeof(WaveTrack));
   if (!pTrack)
     return NULL;
 
@@ -155,7 +157,7 @@ Track* wave_track_create(WaveTypes type, double amp, double freq) {
   pTrack->base.volume = amp;
   pTrack->base.muted = MA_FALSE;
 
-  ma_waveform_config wave_cfg = ma_waveform_config_init(MY_FORMAT, MY_CHANNEL_COUNT, MY_SAMPLE_RATE, (ma_waveform_type)type, amp, freq);
+  ma_waveform_config wave_cfg = ma_waveform_config_init(MY_FORMAT, MY_CHANNEL_COUNT, MY_SAMPLE_RATE, (ma_waveform_type)type, 1, freq);
 
   ma_result result = ma_waveform_init(&wave_cfg, &pTrack->wave);
   if (result != MA_SUCCESS) {
@@ -261,9 +263,6 @@ void data_callback(ma_device *pDevice, void *pOutput, const void *pInput,
 /* Init **********************************************************************/
 
 void device_config_init(ma_device_config *device_cfg, ma_device *device) {
-  device_cfg = malloc(sizeof(ma_device_config));
-  device = malloc(sizeof(ma_device));
-
   *device_cfg = ma_device_config_init(ma_device_type_playback);
   device_cfg->playback.format = MY_FORMAT;
   device_cfg->playback.channels = MY_CHANNEL_COUNT;
@@ -277,10 +276,13 @@ int main(int argc, char *argv[]) {
   ma_result result;
   ma_device_config deviceConfig;
   ma_device device;
-  /* ma_waveform wave; */
   ma_waveform_config wave_config;
 
-  WaveTrack wave1 =
+  Track *track1;
+  Track *track2;
+
+  track1 = wave_track_create(SQUARE, 1, 440);
+  track2 = wave_track_create(SINE, 1, 440);
 
   device_config_init(&deviceConfig, &device);
   /* deviceConfig.pUserData = &wave; */
